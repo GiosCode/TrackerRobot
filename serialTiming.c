@@ -3,8 +3,18 @@
 #include <softPwm.h>
 #include <time.h>
 //Global variables 
-int counterold = 0;
-int counter = 0;
+//int counterold = 0;
+//int counter =  0;
+//int semaphore = 0;
+//int semaphore2 = 0;
+//int semaphore3 = 0;
+int flag = 0;
+clock_t timeM = 0;
+int currentPos = 150;
+
+int leftActive = 0;
+int rightActive = 0;
+
 //Defines
 #define CSENSOR 27 //Physical pin 36, wiringpi 27  CENTER
 #define LSENSOR 21 //Physical pin 29, wiringpi 21 LEFT
@@ -17,9 +27,13 @@ int counter = 0;
 #define CENTER 81
 
 //Function declarations
-int scan(char sensor);//Depending on the "sensor" number it will activate that sensor 
-void move(char direction);//Will move to the desired location
-int setUp(void);
+//int scan(char sensor);//Depending on the "sensor" number it will activate that sensor 
+//void move(char direction);//Will move to the desired location
+int calculate(int movement);
+void setUp(void);
+int leftSensor();
+int rightSensor();
+int centerSensor();
 //Driver
 int main(void){
 	//Setup IO
@@ -29,23 +43,37 @@ int main(void){
 	int active1 = 0;
 	int active2 = 0;
 	int active3 = 0;
+	int test = 0;
+	int test2 = 0;
 	//Infinite while loop that will constantly be checking the sensors, getting data, and then moving the servo accordingly
 	while(1){
-		clock_t timeM = clock();//Used for performance metrics
+	delay(5);
+		//clock_t timeM = clock();//Used for performance metrics
+		// Get 1 or 0 from sensor
 		active1 = leftSensor();
-		active2 = centerSensor();
+		//active2 = centerSensor();
 		active3 = rightSensor();
+		//active2 = centerSensor();
+		// Run servo on triggered sensor
 		calculate(active1);
-		calculate(active2);
+//		delay(500);
+		//calculate(active2);
 		calculate(active3);
-		timeM = clock() - timeM;
-		double timetaken = ((double)timeM)/CLOCKS_PER_SEC;
-   	 	printf("TOOK TIME: %f",timetaken);
-		if(counter < 20){
-			measurements[counter] = timetaken;
-			//counterold = counter;
+		//calculate(active2);
+
+
+
+		if(centerSensor() == 2 && flag == 1){//test!=0||test2!=0
+			double timeL = ((double)timeM) / CLOCKS_PER_SEC;
+			printf("Loop time: %.11f\n", timeL);
+			flag = 0;
+			leftActive = 0;
+			rightActive = 0;
+			timeM = 0;
 		}
+		//timeM = 0;
 	}
+
 	printf("ERROR EXIT INFINITE LOOP");
 	return 0;
 }
@@ -67,55 +95,68 @@ void setUp(void){
 	printf("Setup Complete\n");
 	return;
 }
-uint_t leftSensor(){
-	if(digitalRead(LSENSOR) == LOW){
-		counter++;
+int leftSensor(){
+	if(digitalRead(LSENSOR) == LOW)
+	{
+		if(leftActive == 0){
+			timeM = clock();
+		}
+		else {leftActive = 1;}
+		//currentPos = currentPos + 1;
 		return 1;
 	}
 	else return 0;
 }
-uint_t centerSensor(){
+int centerSensor(){
 	if(digitalRead(CSENSOR) == LOW){
-		counter++;
-		return 2;
-	}
+	timeM = clock() - timeM;
+	return 2;}
 	else return 0;
 }
-uint_t rightSensor(){
-	if(digitalRead(RSENSOR) ==  LOW){
-		counter++;
+int rightSensor(){
+	if(digitalRead(RSENSOR) ==  LOW)
+	{
+		if(rightActive == 0){
+			timeM = clock();
+		}
+		else {rightActive = 1;}
 		return 3;
 	}
 	else return 0;
 }
-int calculate(uint_t movement){
+int calculate(int  movement){
 	//Does the actual moving
-	if(movement == 1){//LEFT
-		pwmWrite(SERVO,50);
+	if(movement == 1 && digitalRead(CSENSOR) == HIGH){//LEFT
+		if (currentPos == 50){
+			currentPos = 50;
+		}
+		else{
+			currentPos = currentPos - 1;
+		}
+		pwmWrite(SERVO,currentPos);//50
+//		timeM = clock() - timeM;
+		printf("\ncurrentPosition LEFT is %d",currentPos);
+		flag = 1;
 		return 1;
 	}
-	else if(movement == 2){//CENTER
-		pwmWrite(SERVO,150);
-		return 1;
-	}
-	else if(movement == 3){//RIGHT
-		pwmWrite(SERVO,250);
+	//else if(movement == 2){//CENTER
+		//pwmWrite(SERVO,150);
+		//counter++;
+	//	timeM = clock() - timeM;
+	//	return 1;
+	//}
+	else if(movement == 3 && digitalRead(CSENSOR) == HIGH){//RIGHT
+		if (currentPos == 250){
+			currentPos = 250;
+		}
+		else{
+			currentPos = currentPos + 1;
+		}
+		pwmWrite(SERVO,currentPos);//250
+//		timeM = clock() - timeM;
+		printf("\ncurrentPosition RIGHT is %d",currentPos);
+		flag = 1;
 		return 1;
 	}
 	else return 0;
 }
-
-/* if(digitalRead(RSENSOR) == LOW && digitalRead(CSENSOR) == 1 && digitalRead(LSENSOR)== 1){
-		//printf("\nMoved Right");
-		pwmWrite(SERVO,250);
-		}
-
-		else if(digitalRead(CSENSOR)==LOW && digitalRead(RSENSOR)==HIGH && digitalRead(LSENSOR)==HIGH){
-		pwmWrite(SERVO,150);
-		//printf("\n              Moved Center");
-		}
-		else if(digitalRead(LSENSOR)==LOW && digitalRead(RSENSOR)==HIGH && digitalRead(CSENSOR)==HIGH){
-		pwmWrite(SERVO,50);
-		//printf("\nMoved Left");
-		}
-		else {} */
